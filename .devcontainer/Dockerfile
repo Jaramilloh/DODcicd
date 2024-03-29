@@ -16,7 +16,7 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
    && apt-get -y install clang lld lshw python3-venv python3-dev libssl-dev \
    && apt-get autoremove -y && apt-get clean -y
    
-ARG USER="codespace"
+ARG USER="vscode"
 ARG VENV_PATH="/home/${USER}/venv"
 COPY requirements.txt /tmp/
 COPY Makefile /tmp/

@@ -6,7 +6,7 @@ FROM mcr.microsoft.com/vscode/devcontainers/universal:2-focal
 # RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 #     && apt-get -y install --no-install-recommends <your-package-list-here>
 RUN apt-get update && apt-get -y install --no-install-recommends \
-   python3.9-venv \
+   python3.8-venv \
    gcc 
    
 ARG USER="codespace"

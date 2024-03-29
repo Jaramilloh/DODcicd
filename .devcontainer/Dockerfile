@@ -1,14 +1,20 @@
 # See here for image contents: https://github.com/microsoft/vscode-dev-containers/tree/v0.245.2/containers/codespaces-linux/.devcontainer/base.Dockerfile
 
-FROM mcr.microsoft.com/devcontainers/base:ubuntu-20.04
+#FROM mcr.microsoft.com/devcontainers/base:ubuntu-20.04
 
 # [Optional] Uncomment this section to install additional OS packages.
 # RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 #     && apt-get -y install --no-install-recommends <your-package-list-here>
-RUN apt-get update && apt-get -y install --no-install-recommends \
-   python3-distutils \
-   python3-venv \
-   gcc 
+#RUN apt-get update && apt-get -y install --no-install-recommends \
+   #python3-distutils \
+   #python3-venv \
+   #gcc 
+
+FROM mcr.microsoft.com/devcontainers/rust:0-1-bullseye
+
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+   && apt-get -y install clang lld lshw python3-venv python3-dev libssl-dev \
+   && apt-get autoremove -y && apt-get clean -y
    
 ARG USER="codespace"
 ARG VENV_PATH="/home/${USER}/venv"

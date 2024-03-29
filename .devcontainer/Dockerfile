@@ -10,7 +10,7 @@
    #python3-venv \
    #gcc 
 
-FROM mcr.microsoft.com/devcontainers/python:3.8-buster
+FROM mcr.microsoft.com/devcontainers/python:3.9-buster
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
    && apt-get -y install clang lld lshw python3-venv python3-dev libssl-dev \

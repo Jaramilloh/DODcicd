@@ -13,7 +13,7 @@
 FROM mcr.microsoft.com/devcontainers/python:3.9-buster
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-   && apt-get -y install clang lld lshw python3-venv python3-dev libssl-dev \
+   && apt-get -y install clang lld lshw python3.9-venv python3.9-dev libssl-dev \
    && apt-get autoremove -y && apt-get clean -y
    
 ARG USER="vscode"

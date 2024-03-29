@@ -6,6 +6,8 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu:20.04
 # RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 #     && apt-get -y install --no-install-recommends <your-package-list-here>
 RUN apt-get update && apt-get -y install --no-install-recommends \
+   python3=3.8.2-ubuntu2 \
+   python3-distutils \
    python3.8-venv \
    gcc 
    

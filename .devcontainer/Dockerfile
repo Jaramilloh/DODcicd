@@ -7,10 +7,12 @@ RUN apt-get update && apt-get -y install --no-install-recommends \
 RUN export PYTHON_VERSION=`python3 -c 'import sys; version=sys.version_info[:3]; print("{0}.{1}.{2}".format(*version))'`
 RUN echo "$PYTHON_VERSION"
 
-ARG USER="vscode"
-ARG VENV_PATH="/home/${USER}/venv"
 COPY requirements.txt /tmp/
 COPY Makefile /tmp/
+
+ARG USER="vscode"
+ARG VENV_PATH="/home/${USER}/venv"
+
 RUN su $USER -c "/usr/bin/python3 -m venv /home/${USER}/venv" \
    && su $USER -c "${VENV_PATH}/bin/pip install --upgrade pip --no-cache-dir" \
    && su $USER -c "${VENV_PATH}/bin/pip install --no-cache-dir install -r /tmp/requirements.txt" \

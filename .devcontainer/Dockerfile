@@ -10,7 +10,7 @@
    #python3-venv \
    #gcc 
 
-FROM mcr.microsoft.com/devcontainers/python:3.8-buster
+FROM mcr.microsoft.com/devcontainers/python:3.10-buster
 
 RUN apt-get update && apt-get -y install --no-install-recommends \
    python3-distutils python3-venv gcc \
@@ -24,5 +24,5 @@ ARG VENV_PATH="/home/${USER}/venv"
 COPY requirements.txt /tmp/
 COPY Makefile /tmp/
 RUN su $USER -c "/usr/bin/python3 -m venv /home/${USER}/venv" \
-   && su $USER -c "${VENV_PATH}/bin/python3 -m pip --disable-pip-version-check --no-cache-dir install -r /tmp/requirements.txt -f https://download.pytorch.org/whl/torch_stable.html" \
+   && su $USER -c "${VENV_PATH}/bin/pip --disable-pip-version-check --no-cache-dir install -r /tmp/requirements.txt -f https://download.pytorch.org/whl/torch_stable.html" \
    && rm -rf /tmp/requirements.txt 

@@ -1,13 +1,43 @@
 {
 	"name": "Python 3.10 Dev Container",
-	"dockerFile": "Dockerfile",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": ".."
+	},
+	"customizations": {
+		"vscode": {
+			"settings": { 
+				"python.defaultInterpreterPath": "/home/codespace/venv/bin/python",
+				"python.linting.enabled": true,
+				"python.linting.pylintEnabled": true,
+				"python.formatting.autopep8Path": "/home/codespace/venv/bin/autopep8",
+				"python.formatting.blackPath": "/home/codespace/venv/bin/black",
+				"python.formatting.yapfPath": "/home/codespace/venv/bin/yapf",
+				"python.linting.banditPath": "/home/codespace/venv/bin/bandit",
+				"python.linting.flake8Path": "/home/codespace/venv/bin/flake8",
+				"python.linting.mypyPath": "/home/codespace/venv/bin/mypy",
+				"python.linting.pycodestylePath": "/home/codespace/venv/bin/pycodestyle",
+				"python.linting.pydocstylePath": "/home/codespace/venv/bin/pydocstyle",
+				"python.linting.pylintPath": "/home/codespace/venv/bin/pylint",
+				"lldb.executable": "/usr/bin/lldb",
+				"files.watcherExclude": {
+					"**/target/**": true
+				}
+			},
+			"extensions": [
+				"GitHub.vscode-pull-request-github",
+				"ms-azuretools.vscode-docker",
+				"ms-python.vscode-pylance",
+				"ms-python.python",
+				"ms-vscode.makefile-tools"
+			]
+		}
+	},
+	"mounts": ["source=codespaces-linux-var-lib-docker,target=/var/lib/docker,type=volume"],
+	"overrideCommand": false,
 	"settings": { 
 		"terminal.integrated.shell.linux": "/bin/bash"
 	},
-	"extensions": [
-		"ms-python.python"
-	],
 	"remoteUser": "vscode",
-	//"postCreateCommand": "source /home/vscode/venv/bin/activate"
-	"postCreateCommand": "bash setup.sh"	
+	"postCreateCommand": "source /home/vscode/venv/bin/activate"
 }

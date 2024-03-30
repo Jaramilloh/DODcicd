@@ -16,7 +16,7 @@ RUN apt-get update && apt-get -y install --no-install-recommends \
    python3-distutils python3-venv gcc \
    && apt-get autoremove -y && apt-get clean -y
 
-RUN export PYTHON_VERSION=`python -c 'import sys; version=sys.version_info[:3]; print("{0}.{1}.{2}".format(*version))'`
+RUN export PYTHON_VERSION=`python3 -c 'import sys; version=sys.version_info[:3]; print("{0}.{1}.{2}".format(*version))'`
 RUN echo "$PYTHON_VERSION"
 
 ARG USER="vscode"

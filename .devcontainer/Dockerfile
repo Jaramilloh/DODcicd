@@ -12,11 +12,10 @@
 
 FROM mcr.microsoft.com/devcontainers/python:3.9-buster
 
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-   && apt-get -y python3.9 install clang lld lshw libssl-dev \
-   && apt-get -y python3-venv python3-dev\
+RUN apt-get update && apt-get -y install --no-install-recommends \
+   python3-distutils python3-venv gcc \
    && apt-get autoremove -y && apt-get clean -y
-   
+
 ARG USER="vscode"
 ARG VENV_PATH="/home/${USER}/venv"
 COPY requirements.txt /tmp/

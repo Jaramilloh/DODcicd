@@ -39,5 +39,5 @@
 		"terminal.integrated.shell.linux": "/bin/bash"
 	},
 	"remoteUser": "vscode",
-	"postCreateCommand": "source /home/vscode/venv/bin/activate"
+	"postCreateCommand": "bash setup.sh",
 }

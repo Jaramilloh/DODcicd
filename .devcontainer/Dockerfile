@@ -1,4 +1,5 @@
-FROM mcr.microsoft.com/devcontainers/python:3.10-buster
+#FROM mcr.microsoft.com/devcontainers/python:3.10-buster
+FROM cnstark/pytorch:2.0.1-py3.10.11-ubuntu22.04
 
 RUN apt-get update && apt-get -y install --no-install-recommends \
    python3-distutils python3-venv gcc \

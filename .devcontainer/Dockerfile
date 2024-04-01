@@ -21,7 +21,5 @@ RUN su $USER -c "/usr/bin/python3 -m venv /home/${USER}/venv" \
    && rm -rf /tmp/requirements.txt 
 
 RUN echo "requirements install done"
-
 USER $USER
-
-RUN echo "dockerbuild done"
+RUN du -sh /var/cache/apk

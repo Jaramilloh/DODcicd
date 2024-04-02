@@ -14,19 +14,12 @@ RUN echo "$PYTHON_VERSION"
 COPY requirements.txt /tmp/
 COPY Makefile /tmp/
 
-#ARG USER_ID=1000
-#ARG GROUP_ID=1000
 ARG USER="vscode"
-#ARG GROUP="mygroup"
-
-#RUN groupadd --system --gid ${GROUP_ID} ${GROUP} && \
-#    useradd --system --uid ${USER_ID} --gid mygroup ${USER}
-
 ARG VENV_PATH="/home/${USER}/venv"
 
 RUN su $USER -c "/usr/bin/python3 -m venv /home/${USER}/venv" \
    && su $USER -c "${VENV_PATH}/bin/pip install --upgrade pip --no-cache-dir" \
-   && su $USER -c "${VENV_PATH}/bin/pip install --no-cache-dir install -r /tmp/requirements.txt" \
+   && su $USER -c "TMPDIR=${VENV_PATH}/tmp ${VENV_PATH}/bin/pip install --no-cache-dir install -r /tmp/requirements.txt" \
    && rm -rf /tmp/requirements.txt 
 
 RUN echo "requirements install done"

@@ -71,7 +71,7 @@ input_dim = Resolution()
 params = Parameters()
 
 
-def load_image(file_name):
+def LoadImage(file_name):
     try:
         image = Image.open(file_name)
     except (Exception,):
@@ -110,17 +110,14 @@ def LoadModel():
         reg_max=params.params["reg_max"],
         device=params.params["device"],
     )
+    model.load_state_dict(torch.load(f"{params.root}/DODcicd/models/optDOD.pth"))
     if str(params.params["device"]) == "cuda":
-        model = torch.load(
-            f"{params.root}/DODcicd/models/model_v0bsDepth_v1_finesse_63.pt"
-        ).to(params.params["device"])
+        model.to(params.params["device"])
     else:
-        model = torch.load(
-            f"{params.root}/DODcicd/models/model_v0bsDepth_v1_finesse_63.pt",
-            map_location=torch.device("cpu"),
-        ).to(params.params["device"])
+        model.to("cpu")
     for _, param in model.named_parameters():
         param.requires_grad = False
+    model.eval()
     print(
         summary(
             model,
@@ -128,11 +125,13 @@ def LoadModel():
             show_input=True,
         )
     )
+    print(type(model))
+
     return model
 
 
 def InferencePass(filename, model=LoadModel()):
-    imagec = load_image(filename)
+    imagec = LoadImage(filename)
     print(imagec.shape)
     print(input_dim.ratio)
     pred = model(imagec.to(params.params["device"]))

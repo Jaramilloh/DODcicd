@@ -3,13 +3,13 @@ install:
 		pip install -r requirements.txt
 
 test:
-	python -m pytest -vv --cov=main --cov=mylib test_*.py
+	python -m pytest -vv --cov=main --cov=src tests/test_*.py
 
 format:	
-	black *.py src/*.py
+	black *.py src/*.py tests/*.py
 
 lint:
-	pylint --disable=R,C,not-callable --ignore-patterns=test_.*?py --extension-pkg-whitelist='pydantic' --generated-members=torch.*,numpy.*,cv2.* --init-hook='import sys; sys.path.append("/workspaces/DOD-ci-cd-main/src/")' *.py src/*.py
+	pylint --disable=R,C,not-callable --ignore-patterns=test_.*?py --extension-pkg-whitelist='pydantic' --generated-members=torch.*,numpy.*,cv2.* --init-hook='import sys; sys.path.append("/workspaces/DOD-ci-cd-main/src/")' *.py src/*.py tests/*.py
 
 container-lint:
 	docker run --rm -i hadolint/hadolint < Dockerfile

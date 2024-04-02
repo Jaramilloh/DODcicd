@@ -6,10 +6,10 @@ test:
 	python -m pytest -vv --cov=main --cov=mylib test_*.py
 
 format:	
-	black *.py logic/*.py
+	black *.py src/*.py
 
 lint:
-	pylint --disable=R,C --ignore-patterns=test_.*?py --extension-pkg-whitelist='pydantic' *.py logic/*.py
+	pylint --disable=R,C,not-callable --ignore-patterns=test_.*?py --extension-pkg-whitelist='pydantic' --generated-members=torch.*,numpy.*,cv2.* --init-hook='import sys; sys.path.append("/workspaces/DOD-ci-cd-main/src/")' *.py src/*.py
 
 container-lint:
 	docker run --rm -i hadolint/hadolint < Dockerfile

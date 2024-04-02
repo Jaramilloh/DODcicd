@@ -36,8 +36,6 @@
 	"mounts": ["source=codespaces-linux-var-lib-docker,target=/var/lib/docker,type=volume"],
 	"remoteUser": "vscode",
     "runArgs": [
-        "-m", 
-        "8g",
         "--cap-add=SYS_PTRACE",
         "--security-opt",
         "seccomp=unconfined",

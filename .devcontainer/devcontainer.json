@@ -34,7 +34,6 @@
 		}
 	},
 	"mounts": ["source=codespaces-linux-var-lib-docker,target=/var/lib/docker,type=volume"],
-	//"overrideCommand": false,
 	"remoteUser": "vscode",
     "runArgs": [
         "-m", 

@@ -4,7 +4,8 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 
 RUN apt-get update && apt-get -y install --no-install-recommends \
-   python3-distutils python3-venv gcc \
+   gcc ffmpeg libgl1 libsm6 libxext6 \
+   python3-distutils python3-venv \
    && apt-get autoremove -y && apt-get clean -y
 
 RUN export PYTHON_VERSION=`python3 -c 'import sys; version=sys.version_info[:3]; print("{0}.{1}.{2}".format(*version))'`
@@ -13,7 +14,14 @@ RUN echo "$PYTHON_VERSION"
 COPY requirements.txt /tmp/
 COPY Makefile /tmp/
 
+#ARG USER_ID=1000
+#ARG GROUP_ID=1000
 ARG USER="vscode"
+#ARG GROUP="mygroup"
+
+#RUN groupadd --system --gid ${GROUP_ID} ${GROUP} && \
+#    useradd --system --uid ${USER_ID} --gid mygroup ${USER}
+
 ARG VENV_PATH="/home/${USER}/venv"
 
 RUN su $USER -c "/usr/bin/python3 -m venv /home/${USER}/venv" \
@@ -22,5 +30,5 @@ RUN su $USER -c "/usr/bin/python3 -m venv /home/${USER}/venv" \
    && rm -rf /tmp/requirements.txt 
 
 RUN echo "requirements install done"
+
 USER $USER
-RUN du -sh /var/cache/apk

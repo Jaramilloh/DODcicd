@@ -110,7 +110,7 @@ def LoadModel():
         reg_max=params.params["reg_max"],
         device=params.params["device"],
     )
-    model.load_state_dict(torch.load(f"{params.root}/DODcicd/models/optDOD.pth"))
+    model.load_state_dict(torch.load(f"{params.root}/DOD-ci-cd/models/optDOD.pth"))
     if str(params.params["device"]) == "cuda":
         model.to(params.params["device"])
     else:
@@ -166,8 +166,8 @@ def ResizePrediction(imgage, filename):
 
 
 imgfile = "dataset2_front_510.png"
-img = f"{params.root}/DODcicd/images/{imgfile}"
-outfile = f"{params.root}/DODcicd/predictions/pred_{imgfile}"
+img = f"{params.root}/DOD-ci-cd/images/{imgfile}"
+outfile = f"{params.root}/DOD-ci-cd/predictions/pred_{imgfile}"
 # print(params.root)
 # print(img, outfile)
 

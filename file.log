@@ -19,3 +19,9 @@ Traceback (most recent call last):
   File "/workspaces/DODcicd/main.py", line 120, in LoadModel
     ).to(params.params["device"])
 AttributeError: '_IncompatibleKeys' object has no attribute 'to'
+2024-04-05 22:27:52,199 - main - ERROR - Could not open image file /workspaces/DODcicd/images/dataset2_front_510.png
+2024-04-05 22:27:52,483 - main - ERROR - Could not open image file /workspaces/DODcicd/images/dataset2_front_510.png
+2024-04-05 22:27:52,536 - main - ERROR - Could not open image file /workspaces/DODcicd/images/dataset2_front_510.png
+2024-04-05 22:28:17,768 - main - ERROR - Could not open image file /workspaces/DODcicd/images/dataset2_front_510.png
+2024-04-05 22:28:18,052 - main - ERROR - Could not open image file /workspaces/DODcicd/images/dataset2_front_510.png
+2024-04-05 22:28:18,114 - main - ERROR - Could not open image file /workspaces/DODcicd/images/dataset2_front_510.png

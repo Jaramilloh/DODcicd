@@ -15,7 +15,7 @@ params = Parameters()
 
 def test_LoadImage():
     imgfile = "dataset2_front_510.png"
-    imgfile = f"{params.root}/DODcicd/images/{imgfile}"
+    imgfile = f"{params.root}/DOD-ci-cd/images/{imgfile}"
     img = LoadImage(imgfile)
     zeros = torch.zeros([1, 3, 320, 320], dtype=torch.float32)
     assert zeros.shape == img.shape
@@ -28,16 +28,16 @@ def test_LoadModel():
 
 def test_InferencePass():
     imgfile = "dataset2_front_510.png"
-    img = f"{params.root}/DODcicd/images/{imgfile}"
+    img = f"{params.root}/DOD-ci-cd/images/{imgfile}"
     predimg = InferencePass(img)
     assert predimg.shape == (params.params["img_size"], params.params["img_size"], 3)
 
 
 def test_ResizePrediction():
     imgname = "dataset2_front_510.png"
-    imgfile = f"{params.root}/DODcicd/images/{imgname}"
+    imgfile = f"{params.root}/DOD-ci-cd/images/{imgname}"
     predimg = InferencePass(imgfile)
-    outfile = f"{params.root}/DODcicd/predictions/pred_{imgname}"
+    outfile = f"{params.root}/DOD-ci-cd/predictions/pred_{imgname}"
     if os.path.exists(outfile):
         os.remove(outfile)
     from PIL import Image

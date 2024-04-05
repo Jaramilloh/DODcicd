@@ -6,12 +6,14 @@ pytest==7.1.3
 pytest-cov==4.0.0
 pylint==3.1.0
 #pylint==2.15.3
-locust==2.13.0
+#locust==2.13.0
 #mlops
+pillow==9.0.1
 opencv-python==4.7.0.68
 torch==2.0.1
 #torch==2.0.1+cpu
 #torch==1.13.1+cpu
 torchvision==0.15.2
+matplotlib==3.5.1
 seaborn==0.12.1
 pytorch-model-summary

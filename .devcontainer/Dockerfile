@@ -13,8 +13,8 @@ ARG USER="vscode"
 
 ARG VENV_PATH="/home/${USER}/venv"
 
-RUN su $USER -c "python3 -m install --upgrade pip --no-cache-dir" \
-   && su $USER -c "python3 -m install --no-cache-dir install -r /tmp/requirements.txt" \
+RUN su $USER -c "python3 -m pip install --upgrade pip --no-cache-dir" \
+   && su $USER -c "python3 -m pip install --no-cache-dir install -r /tmp/requirements.txt" \
    && rm -rf /tmp/requirements.txt 
 
 RUN su $USER -c "/usr/bin/python3 -m venv /home/${USER}/venv" \

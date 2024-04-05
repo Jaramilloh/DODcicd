@@ -33,7 +33,7 @@ For details in the architecture of the Optimized Depth Object Detector trained f
 
 ## License
 
-This project is licensed under the (INSERT LICENSE NAME) license. For more details, please see the [GNU AFFERO GENERAL PUBLIC LICENSE](LICENSE) file.
+This project is licensed under the (AGPL-3.0 license) license. For more details, please see the [GNU AFFERO GENERAL PUBLIC LICENSE](LICENSE) file.
 
 ## Contact
 

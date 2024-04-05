@@ -1,3 +1,5 @@
+[![CI](https://github.com/Jaramilloh/DOD-ci-cd/actions/workflows/cicd.yml/badge.svg?branch=main)](https://github.com/Jaramilloh/DOD-ci-cd/actions/workflows/cicd.yml)
+
 # DOD-ci-cd Development Container
 
 Continuous integration and continuous delivery of the optimized ablation-driven depth object detector

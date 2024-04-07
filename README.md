@@ -2,7 +2,7 @@
 
 # DOD-ci-cd Development Container
 
-Continuous integration and continuous delivery of the optimized ablation-driven depth object detector
+Continuous integration (for now) and continuous delivery (for near future) of the optimized ablation-driven depth object detector
 
 ## Description
 

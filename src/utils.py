@@ -40,10 +40,14 @@ class MetricMonitor:
             ]
         )
 
-
 def ltwh2xyxy(x):
     """
     It converts the bounding box from [x1, y1, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
+
+    Args:
+        x (np.ndarray | torch.Tensor): The input bounding box coordinates in (left, top, width, height) format.
+    Returns:
+        y (np.ndarray | torch.Tensor): The bounding box coordinates in (x1, y1, x2, y2) format.
     """
     y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
     y[:, 2] = x[:, 2] + x[:, 0]  # width
@@ -54,6 +58,11 @@ def ltwh2xyxy(x):
 def xyxy2ltwh(x):
     """
     Convert nx4 bounding boxes from [x1, y1, x2, y2] to [x1, y1, w, h], where xy1=top-left, xy2=bottom-right
+
+    Args:
+        x (np.ndarray | torch.Tensor): The input bounding box coordinates in (x, y, x, y) format.
+    Returns:
+        y (np.ndarray | torch.Tensor): The bounding box coordinates in (left, right, width, height) format.
     """
     y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
     y[:, 2] = x[:, 2] - x[:, 0]  # width
@@ -101,13 +110,41 @@ def box_iou(box1, box2, eps=1e-7):
     return inter / ((a2 - a1).prod(2) + (b2 - b1).prod(2) - inter + eps)
 
 
-def visualize_depth_bbox(img, bbox, depth, thickness=2):
-    """Draw a single bounding box on the image."""
+def map_variable_to_green(variable):
+    """
+    Map depth value into green intensity color
+    Args:
+        variable (float): The input depth value.
+    Returns:
+        green_bgr (np.ndarray): The green intensity color in BGR format.
+    """
+    min_value = 15
+    max_value = 25
+    variable = max(min_value, min(variable, max_value))
+    normalized_variable = (variable - min_value) / (max_value - min_value)
+    hue = 60
+    saturation = int(255)
+    value = 255 - int(255 * (1 - normalized_variable))
+    green_bgr = np.array([[[hue, saturation, value]]], dtype=np.uint8)
+    green_bgr = cv2.cvtColor(green_bgr, cv2.COLOR_HSV2BGR)
+    return green_bgr[0, 0]
+
+
+def visualize_depth_bbox_text(img, bbox, depth, thickness=2):
+    """
+    Draw a bounding boxes on the image displaying the depth value representation.
+    Args:
+        img (np.ndarray): The input image.
+        bbox (tuple): The bounding box coordinates in (x, y, width, height) format.
+        depth (float): The depth value.
+        thickness (int, optional): The thickness of the bounding box. Defaults to 2.
+    Returns:
+        img (np.ndarray): The image with the bounding box and depth value.    
+    """
     TEXT_COLOR = (215, 0, 0)
     x_min, y_min, w, h = bbox
     x_min, x_max, y_min, y_max = int(x_min), int(x_min + w), int(y_min), int(y_min + h)
     green_color = map_variable_to_green(depth)
-    # green_color = [green_color[0]/255., green_color[1]/255.,green_color[2]/255.]
     green_color = [green_color[0] / 1.0, green_color[1] / 1.0, green_color[2] / 1.0]
     cv2.rectangle(
         img, (x_min, y_min), (x_max, y_max), color=green_color, thickness=thickness
@@ -129,27 +166,26 @@ def visualize_depth_bbox(img, bbox, depth, thickness=2):
     return img
 
 
-def map_variable_to_green(variable):
-    """Map depth value into green intensity color"""
-    min_value = 0.0
-    max_value = 50.0  # 655.35
-    variable = max(min_value, min(variable, max_value))
-    normalized_variable = (variable - min_value) / (max_value - min_value)
-    hue = 0  # 60
-    saturation = int(255)
-    value = int(255 * (1 - normalized_variable))
-    green_bgr = np.array([[[hue, saturation, value]]], dtype=np.uint8)
-    green_bgr = cv2.cvtColor(green_bgr, cv2.COLOR_HSV2BGR)
-    return green_bgr[0, 0]
-
-
-def visualize_depth_bbox_yolo(img, bbox, depth, thickness=2):
-    """Draw a single bounding box on the image."""
+def visualize_depth_bbox_yolo_text(img, bbox, depth, thickness=2):
+    """
+    Draw a bounding boxes on the image displaying the depth value representation.
+    Args:
+        img (np.ndarray): The input image.
+        bbox (tuple): The bounding box coordinates in (x1, y1, x2, y2) format.
+        depth (float): The depth value.
+        thickness (int, optional): The thickness of the bounding box. Defaults to 2.
+    Returns:
+        img (np.ndarray): The image with the bounding box and depth value.
+    """
     TEXT_COLOR = (215, 0, 0)
     x_min, y_min, x_max, y_max = bbox
     x_min, x_max, y_min, y_max = int(x_min), int(x_max), int(y_min), int(y_max)
     green_color = map_variable_to_green(depth)
-    green_color = [int(green_color[0]), int(green_color[1]), int(green_color[2])]
+    green_color = [
+        int(green_color[0]) / 255.0,
+        int(green_color[1]) / 255.0,
+        int(green_color[2]) / 255.0,
+    ]
     cv2.rectangle(
         img, (x_min, y_min), (x_max, y_max), color=green_color, thickness=thickness
     )
@@ -170,8 +206,61 @@ def visualize_depth_bbox_yolo(img, bbox, depth, thickness=2):
     return img
 
 
+def visualize_depth_bbox(img, bbox, depth, thickness=2):
+    """
+    Draw a bounding boxes on the image representing depth value as intensity in color green.
+    Args:
+        img (np.ndarray): The input image.
+        bbox (tuple): The bounding box coordinates in (x, y, width, height) format.
+        depth (float): The depth value.
+        thickness (int, optional): The thickness of the bounding box. Defaults to 2.
+    Returns:
+        img (np.ndarray): The image with the bounding box and depth value.
+    """
+    x_min, y_min, w, h = bbox
+    x_min, x_max, y_min, y_max = int(x_min), int(x_min + w), int(y_min), int(y_min + h)
+    green_color = map_variable_to_green(depth)
+    green_color = [green_color[0], green_color[1], green_color[2]]
+    cv2.rectangle(
+        img, (x_min, y_min), (x_max, y_max), color=green_color, thickness=thickness
+    )
+    # print(f"depth {depth[0]:.2f} color {green_color}")
+    return img
+
+
+def visualize_depth_bbox_yolo(img, bbox, depth, thickness=2):
+    """
+    Draw a bounding boxes on the image representing depth value as intensity in color green.
+    Args:
+        img (np.ndarray): The input image.
+        bbox (tuple): The bounding box coordinates in (x, y, width, height) format.
+        depth (float): The depth value.
+        thickness (int, optional): The thickness of the bounding box. Defaults to 2.
+    Returns:
+        img (np.ndarray): The image with the bounding box and depth value.
+    """
+    x_min, y_min, x_max, y_max = bbox
+    x_min, x_max, y_min, y_max = int(x_min), int(x_max), int(y_min), int(y_max)
+    green_color = map_variable_to_green(depth)
+    green_color = [int(green_color[0]), int(green_color[1]), int(green_color[2])]
+    cv2.rectangle(
+        img, (x_min, y_min), (x_max, y_max), color=green_color, thickness=thickness
+    )
+    # print(f"depth {depth[0]:.2f} color {green_color}")
+    return img
+
+
 # img, nms, category_id_to_name, name
 def visualize_pred(img, nms):
+    """
+    Visualize the prediction result from the model for a single image.
+    Args:
+        img (torch.Tensor): The input image(s) tensor.
+        nms (torch.Tensor): The prediction(s) tensor.
+    Returns:
+        img (np.ndarray): The image(s) with the bounding box and depth value.
+    
+    """
     prediction = nms[0].to("cpu")
     img = img[0].to("cpu").permute(1, 2, 0).numpy().copy()
     img = 255 * img  # Now scale by 255
@@ -185,3 +274,43 @@ def visualize_pred(img, nms):
     ):
         img = visualize_depth_bbox_yolo(img, bbox, depth)
     return img
+
+
+# img, nms, category_id_to_name, name
+def visualize_batch(batch, output):
+    """
+    Visualize the prediction result from the model for a batch.
+    Args:
+        batch (torch.Tensor): The input image(s) tensor.
+        nms (torch.Tensor): The prediction(s) tensor.
+    Returns:
+        batchpred (np.ndarray): The image(s) with the bounding box and depth value.
+    """
+    batchpred = torch.zeros(
+        (batch.shape[1], batch.shape[2], batch.shape[3]), dtype=torch.float32
+    )
+    for i in range(len(output)):
+        prediction = output[i].to("cpu")
+        img = batch[i].to("cpu").permute(1, 2, 0).numpy().copy()
+        img = 255 * img  # Now scale by 255
+        img = img.astype(np.uint8)
+        bboxes = prediction[:, :4]
+        category_ids = prediction[:, 5]
+        depths = prediction[:, 6]
+        # bbox, category_id, depth
+        for bbox, _, depth in zip(
+            bboxes.detach().numpy(),
+            category_ids.detach().numpy(),
+            depths.detach().numpy(),
+        ):
+            img = visualize_depth_bbox_yolo(img, bbox, depth)
+            # img = visualize_depth_bbox_yolo_text(img, bbox, depth)
+        pred = torch.tensor(img, dtype=torch.uint8)
+        pred = pred.unsqueeze(0)
+        pred = pred.permute(0, 3, 1, 2)
+        if i == 0:
+            batchpred = pred
+        else:
+            batchpred = torch.cat((batchpred, pred), dim=0)
+    return batchpred
+

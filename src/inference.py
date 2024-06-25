@@ -30,6 +30,14 @@ class DFL(nn.Module):
 
 class Inference(nn.Module):
     def __init__(self, nclasses=1, stride=None, reg_max=1, device="cpu"):
+        """
+        Inference module of YOLOv8.
+        Args:
+            nclasses (int): number of classes in the dataset.
+            stride (list[int]): stride of each head in the model.
+            reg_max (int): maximum value of regression.
+            device (str): device to run the model.
+        """
         super(Inference, self).__init__()
         self.stride = stride
         self.nc = nclasses
@@ -40,6 +48,13 @@ class Inference(nn.Module):
         )  # if self.reg_max > 1 else nn.Identity()
 
     def forward(self, feats):
+        """
+        Extract predictions from each head at different strides.
+        Args:
+            feats (list[torch.Tensor]): list of predictions from each head.
+        Returns:
+            torch.Tensor: concatenated postprocessed predictions from all heads.
+        """
         # Extract predictions from each head at different strides
         pred_distri, pred_scores, pred_depth = torch.cat(
             [xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2

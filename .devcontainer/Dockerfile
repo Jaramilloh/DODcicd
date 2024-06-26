@@ -23,11 +23,12 @@ COPY Makefile /tmp/
 ARG USER="vscode"
 
 ARG VENV_PATH="/home/${USER}/venv"
+ARG TMPDIR_PATH="/home/${USER}/tmp"
 
 RUN su $USER -c "/usr/bin/python3 -m venv /home/${USER}/venv" \
-   && su $USER -c "mkdir /home/${USER}/venv/tmp" \
-   && su $USER -c "TMPDIR=/home/${USER}/venv/tmp ${VENV_PATH}/bin/pip install --upgrade pip --no-cache-dir" \
-   && su $USER -c "TMPDIR=/home/${USER}/venv/tmp ${VENV_PATH}/bin/pip install --no-cache-dir install -r /tmp/requirements.txt" \
+   && su $USER -c "mkdir ${TMPDIR_PATH}" \
+   && su $USER -c "TMPDIR=${TMPDIR_PATH} ${VENV_PATH}/bin/pip install --upgrade pip --no-cache-dir" \
+   && su $USER -c "TMPDIR=${TMPDIR_PATH} ${VENV_PATH}/bin/pip install --no-cache-dir install -r /tmp/requirements.txt" \
    && rm -rf /tmp/requirements.txt 
 
 RUN echo "requirements install done"

@@ -4,6 +4,7 @@
 		"dockerfile": "Dockerfile",
 		"context": ".."
 	},
+	"initializeCommand": "docker system prune --all --force",
 	"customizations": {
 		"vscode": {
 			"settings": { 

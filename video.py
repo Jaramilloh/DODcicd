@@ -398,7 +398,7 @@ if __name__ == "__main__":
     while True:
         n1 = dt.datetime.now()
         try:
-            cv2.imshow("`ESC` to exit", safe)
+            cv2.imshow("`q` to exit", safe)
         except (ValueError, IOError) as err:
             logging.warning("An error occurred: %s", err)
             # Signal all threads to stop

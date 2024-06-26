@@ -1,4 +1,4 @@
-[![CI](https://github.com/Jaramilloh/DOD-ci-cd/actions/workflows/cicd.yml/badge.svg?branch=main)](https://github.com/Jaramilloh/DOD-ci-cd/actions/workflows/cicd.yml)
+[![CI](https://github.com/Jaramilloh/DODcicd/actions/workflows/cicd.yml/badge.svg)](https://github.com/Jaramilloh/DODcicd/actions/workflows/cicd.yml)
 
 # DOD-ci-cd Development Container
 

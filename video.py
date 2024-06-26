@@ -84,7 +84,7 @@ def clear_q(q_frame, interval=10):
 def clear_b(q_batch, interval=10):
     """
     Clear the batch queue to avoid memory overload.
-    
+
     Args:
         q_batch (queue): The batch queue to clear.
         interval (int): The interval to clear the batch queue.
@@ -99,7 +99,7 @@ def clear_b(q_batch, interval=10):
 def clear_pred(q_out, interval=10):
     """
     Clear the prediction queue to avoid memory overload.
-    
+
     Args:
         q_out (queue): The prediction queue to clear.
         interval (int): The interval to clear the prediction queue.
@@ -115,6 +115,7 @@ class Parameters:
     """
     Define the parameters for the video processing.
     """
+
     def __init__(self):
         self.cwd = os.getcwd()
         self.root = os.path.dirname(self.cwd)
@@ -142,7 +143,7 @@ pred = queue.Queue()
 def calc_ratio(width, height, img_size):
     """
     Calculate the ratio of the image size.
-    
+
     Args:
         width (int): The width of the image.
         height (int): The height of the image.
@@ -166,7 +167,7 @@ def calc_ratio(width, height, img_size):
 def ReadFrame(q_frame=None):
     """
     Thread to read the frame from the video.
-    
+
     Args:
         q_frame (queue): The frame queue to read.
     """
@@ -203,7 +204,7 @@ def ReadFrame(q_frame=None):
 def BatchConstruct(q_frame=None, q_batch=None):
     """
     Thread to construct the batch from the frame.
-    
+
     Args:
         q_frame (queue): The frame queue to construct the batch.
         q_batch (queue): The batch queue to construct.
@@ -241,7 +242,7 @@ def InferencePass(
 ):
     """
     Thread to perform inference pass for object detection.
-    
+
     Args:
         q_batch (queue): The batch queue for inference.
         q_out (queue): The output queue for inference.
@@ -293,7 +294,7 @@ def InferencePass(
 def LoadModel():
     """
     Load the object detection model.
-    
+
     Returns:
         obj_model (ObjectDetectorV0): The object detection model.
     """
@@ -324,14 +325,7 @@ def LoadModel():
 # ---------
 # --------- MAIN
 if __name__ == "__main__":
-    """
-    Main function to run the video processing.
-    
-    Args:
-        q (queue): The frame queue.
-        b (queue): The batch queue.
-        pred (queue): The prediction queue.
-    """
+
     # threads for preiodically clean queues
     thread_clean_q = Thread(target=clear_q, args=(q, 4))
     thread_clean_b = Thread(target=clear_b, args=(b, 2))

@@ -40,6 +40,7 @@ class MetricMonitor:
             ]
         )
 
+
 def ltwh2xyxy(x):
     """
     It converts the bounding box from [x1, y1, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
@@ -139,7 +140,7 @@ def visualize_depth_bbox_text(img, bbox, depth, thickness=2):
         depth (float): The depth value.
         thickness (int, optional): The thickness of the bounding box. Defaults to 2.
     Returns:
-        img (np.ndarray): The image with the bounding box and depth value.    
+        img (np.ndarray): The image with the bounding box and depth value.
     """
     TEXT_COLOR = (215, 0, 0)
     x_min, y_min, w, h = bbox
@@ -259,7 +260,7 @@ def visualize_pred(img, nms):
         nms (torch.Tensor): The prediction(s) tensor.
     Returns:
         img (np.ndarray): The image(s) with the bounding box and depth value.
-    
+
     """
     prediction = nms[0].to("cpu")
     img = img[0].to("cpu").permute(1, 2, 0).numpy().copy()
@@ -313,4 +314,3 @@ def visualize_batch(batch, output):
         else:
             batchpred = torch.cat((batchpred, pred), dim=0)
     return batchpred
-

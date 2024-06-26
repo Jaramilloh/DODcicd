@@ -10,7 +10,7 @@ pylint==3.1.0
 #locust==2.13.0
 #mlops
 pillow==9.0.1
-opencv-python==4.7.0.71
+opencv-python==4.7.0.68
 torch==2.0.1
 #torch==2.0.1+cpu
 torchvision==0.15.2

@@ -9,14 +9,14 @@ from pytorch_model_summary import summary
 from PIL import Image
 
 from src.inference import Inference, non_max_suppression
-from src.utils import visualize_pred
+from src.ops import visualize_pred
 
 from src.model import ConvModule  # pylint: disable=unused-import
 from src.model import Bottleneck  # pylint: disable=unused-import
 from src.model import C2f  # pylint: disable=unused-import
 from src.model import SPPF  # pylint: disable=unused-import
 from src.model import DetectionHead  # pylint: disable=unused-import
-from src.model import ObjectDetectorV0
+from src.model import DODv2
 
 # Create a custom logger
 LOGGER = logging.getLogger(__name__)
@@ -105,12 +105,14 @@ def LoadImage(file_name):
 
 
 def LoadModel():
-    model = ObjectDetectorV0(
+    model = DODv2(
         nclasses=len(params.classes),
         reg_max=params.params["reg_max"],
         device=params.params["device"],
     )
-    model.load_state_dict(torch.load(f"{params.root}/DODcicd/models/optDOD.pth"))
+    model.load_state_dict(
+        torch.load(f"{params.root}/DODcicd/models/DODv2_optimized.pth")
+    )
     if str(params.params["device"]) == "cuda":
         model.to(params.params["device"])
     else:
@@ -168,8 +170,6 @@ def ResizePrediction(imgage, filename):
 imgfile = "dataset2_front_510.png"
 img = f"{params.root}/DODcicd/images/{imgfile}"
 outfile = f"{params.root}/DODcicd/predictions/pred_{imgfile}"
-# print(params.root)
-# print(img, outfile)
 
 if __name__ == "__main__":
     predicted_image = InferencePass(img)

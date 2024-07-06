@@ -2,7 +2,7 @@ import time
 import torch
 from torch import nn
 import torchvision
-from src.utils import xywh2xyxy, box_iou
+from src.ops import xywh2xyxy, box_iou
 
 
 class DFL(nn.Module):
@@ -29,9 +29,9 @@ class DFL(nn.Module):
 
 
 class Inference(nn.Module):
-    def __init__(self, nclasses=1, stride=None, reg_max=1, device="cpu"):
+    def __init__(self, nclasses=1, stride=None, reg_max=1, device="cpu", tempscale=1.0):
         """
-        Inference module of YOLOv8.
+        Inference module of DOD.
         Args:
             nclasses (int): number of classes in the dataset.
             stride (list[int]): stride of each head in the model.
@@ -46,6 +46,7 @@ class Inference(nn.Module):
         self.dfl = DFL(
             self.reg_max, device=device
         )  # if self.reg_max > 1 else nn.Identity()
+        self.tempscale = tempscale
 
     def forward(self, feats):
         """
@@ -74,9 +75,85 @@ class Inference(nn.Module):
             ).clamp_(0.0)
             * strides
         )
+        pred_scores = pred_scores / self.tempscale
         y = torch.cat(
             (dbox, pred_scores.sigmoid(), pred_depth), 1
         )  # (bs, 4 + nclasses + depth, h*w)
+        return y
+
+    def dist2bbox(self, distance, anchor_points, xywh=True, dim=-1):
+        """Transform distance(ltrb) to box(xywh or xyxy).
+        width and height of bounding box are in range [0, 2*(self.reg_max-1)] owing to (x2y2-x1y1=rb+lt)
+        """
+        lt, rb = distance.chunk(2, dim)  # lt and rb is in range[0, self.reg_max-1]
+        x1y1 = anchor_points - lt
+        x2y2 = anchor_points + rb
+        if xywh:
+            c_xy = (x1y1 + x2y2) / 2
+            wh = x2y2 - x1y1
+            return torch.cat((c_xy, wh), dim)  # xywh bbox
+        return torch.cat((x1y1, x2y2), dim)  # xyxy bbox
+
+    def make_anchors(self, feats, strides, grid_cell_offset=0.5):
+        """Generate anchors from features."""
+        anchor_points, stride_tensor = [], []
+        assert feats is not None
+        dtype, device = feats[0].dtype, feats[0].device
+        for i, stride in enumerate(strides):
+            _, _, h, w = feats[i].shape
+            sx = (
+                torch.arange(end=w, device=device, dtype=dtype) + grid_cell_offset
+            )  # shift x
+            sy = (
+                torch.arange(end=h, device=device, dtype=dtype) + grid_cell_offset
+            )  # shift y
+            sy, sx = torch.meshgrid(sy, sx, indexing="ij")
+            anchor_points.append(torch.stack((sx, sy), -1).view(-1, 2))
+            stride_tensor.append(
+                torch.full((h * w, 1), stride, dtype=dtype, device=device)
+            )
+        return torch.cat(anchor_points), torch.cat(stride_tensor)
+
+
+class InferenceYolo(nn.Module):
+    """
+    Inference module of DOD.
+    Args:
+        nclasses (int): number of classes in the dataset.
+        stride (list[int]): stride of each head in the model.
+        reg_max (int): maximum value of regression.
+        device (str): device to run the model.
+    """
+
+    def __init__(self, nclasses=1, stride=None, reg_max=16, device="cpu"):
+        super(InferenceYolo, self).__init__()
+        self.stride = stride
+        self.nc = nclasses
+        self.reg_max = reg_max
+        self.no = self.reg_max * 4 + nclasses
+        self.dfl = DFL(self.reg_max).to(
+            device
+        )  # if self.reg_max > 1 else nn.Identity()
+
+    def forward(self, feats):
+        # Extract predictions from each head at different strides
+        pred_distri, pred_scores = torch.cat(
+            [xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2
+        ).split((self.reg_max * 4, self.nc), 1)
+        pred_scores = pred_scores.permute(0, 1, 2).contiguous()
+        pred_distri = pred_distri.permute(0, 1, 2).contiguous()
+        # Get anchor point centers from output grids and its corresponding stride
+        anchors, strides = (
+            x.transpose(0, 1) for x in self.make_anchors(feats, self.stride, 0.5)
+        )
+        # Decode reg_max*4 prediction to cxywh bounding box prediction
+        dbox = (
+            self.dist2bbox(
+                self.dfl(pred_distri), anchors.unsqueeze(0), xywh=True, dim=1
+            ).clamp_(0.0)
+            * strides
+        )
+        y = torch.cat((dbox, pred_scores.sigmoid()), 1)  # (bs, 4 + nclasses, h*w)
         return y
 
     def dist2bbox(self, distance, anchor_points, xywh=True, dim=-1):

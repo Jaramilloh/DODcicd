@@ -1,316 +1,218 @@
-from collections import defaultdict
-import numpy as np
-import torch
-import cv2
+import sys
+import os
+import platform
+import glob
 
-# import matplotlib.pyplot as plt
+import logging
+
+from types import SimpleNamespace
+
+import re
+import yaml
+
+import urllib
+
+from pathlib import Path
+
+LOGGING_NAME = "dodcicd"
+RANK = int(os.getenv("RANK", "-1"))
+MACOS, LINUX, WINDOWS = (
+    platform.system() == x for x in ["Darwin", "Linux", "Windows"]
+)  # environment booleans
+VERBOSE = True  # global verbose mode
 
 
-class MetricMonitor:
+def set_logging(name="LOGGING_NAME", verbose=True):
+    """Sets up logging for the given name with UTF-8 encoding support, ensuring compatibility across different
+    environments.
     """
-    Metric Monitor class to show a loading bar along training to follow-up
-    in-time proccesed batch and epoch, with its corresponding metrics.
+    level = (
+        logging.INFO if verbose and RANK in {-1, 0} else logging.ERROR
+    )  # rank in world for Multi-GPU trainings
+
+    # Configure the console (stdout) encoding to UTF-8, with checks for compatibility
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    if WINDOWS and hasattr(sys.stdout, "encoding") and sys.stdout.encoding != "utf-8":
+
+        class CustomFormatter(logging.Formatter):
+            def format(self, record):
+                """Sets up logging with UTF-8 encoding and configurable verbosity."""
+                return emojis(super().format(record))
+
+        try:
+            # Attempt to reconfigure stdout to use UTF-8 encoding if possible
+            if hasattr(sys.stdout, "reconfigure"):
+                sys.stdout.reconfigure(encoding="utf-8")
+            # For environments where reconfigure is not available, wrap stdout in a TextIOWrapper
+            elif hasattr(sys.stdout, "buffer"):
+                import io
+
+                sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+            else:
+                formatter = CustomFormatter("%(message)s")
+        except Exception as e:  # pylint: disable=broad-except
+            print(f"Creating custom formatter for non UTF-8 environments due to {e}")
+            formatter = CustomFormatter("%(message)s")
+
+    # Create and configure the StreamHandler with the appropriate formatter and level
+    stream_handler = logging.StreamHandler(sys.stdout)
+    f_handler = logging.FileHandler(f"{name}.log")
+    stream_handler.setFormatter(formatter)
+    stream_handler.setLevel(level)
+    f_handler.setLevel(level)
+    f_handler.setFormatter(formatter)
+
+    # Set up the logger
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(stream_handler)
+    logger.addHandler(f_handler)
+    logger.propagate = False
+    return logger
+
+
+# Set logger
+LOGGER = set_logging(LOGGING_NAME, verbose=VERBOSE)
+
+for logg in "sentry_sdk", "urllib3.connectionpool":
+    logging.getLogger(logg).setLevel(logging.CRITICAL + 1)
+
+
+def emojis(string=""):
+    """Return platform-dependent emoji-safe version of string."""
+    return string.encode().decode("ascii", "ignore") if WINDOWS else string
+
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    LOGGER.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+
+sys.excepthook = handle_exception
+
+FILE = Path(__file__).resolve()
+ROOT = FILE.parents[1]  # YOLO
+ASSETS = ROOT / "assets"  # default images
+DEFAULT_CFG_PATH = ROOT / "cfg/default.yaml"
+
+
+def yaml_load(file="data.yaml", append_filename=False):
+    """
+    Load YAML data from a file.
+
+    Args:
+        file (str, optional): File name. Default is 'data.yaml'.
+        append_filename (bool): Add the YAML filename to the YAML dictionary. Default is False.
+
+    Returns:
+        (dict): YAML data and file name.
+    """
+    assert Path(file).suffix in {
+        ".yaml",
+        ".yml",
+    }, f"Attempting to load non-YAML file {file} with yaml_load()"
+    with open(file, errors="ignore", encoding="utf-8") as f:
+        s = f.read()  # string
+
+        # Remove special characters
+        if not s.isprintable():
+            s = re.sub(
+                r"[^\x09\x0A\x0D\x20-\x7E\x85\xA0-\uD7FF\uE000-\uFFFD\U00010000-\U0010ffff]+",
+                "",
+                s,
+            )
+
+        # Add YAML filename to dict and return
+        data = (
+            yaml.safe_load(s) or {}
+        )  # always return a dict (yaml.safe_load() may return None for empty files)
+        if append_filename:
+            data["yaml_file"] = str(file)
+        return data
+
+
+class IterableSimpleNamespace(SimpleNamespace):
+    """IterableSimpleNamespace is an extension class of SimpleNamespace that adds iterable functionality and
+    enables usage with dict() and for loops.
     """
 
-    def __init__(self, float_precision=3):
-        self.float_precision = float_precision
-        self.reset()
-
-    def reset(self):
-        self.metrics = defaultdict(lambda: {"val": 0, "count": 0, "avg": 0})
-
-    def update(self, metric_name, val, updated=False):
-        metric = self.metrics[metric_name]
-        metric["val"] += val
-        metric["count"] += 1
-        if updated == False:
-            metric["avg"] = metric["val"] / metric["count"]
-        else:
-            metric["avg"] = val
+    def __iter__(self):
+        """Return an iterator of key-value pairs from the namespace's attributes."""
+        return iter(vars(self).items())
 
     def __str__(self):
-        return " | ".join(
-            [
-                "{metric_name}: {avg:.{float_precision}f}".format(
-                    metric_name=metric_name,
-                    avg=metric["avg"],
-                    float_precision=self.float_precision,
-                )
-                for (metric_name, metric) in self.metrics.items()
-            ]
+        """Return a human-readable string representation of the object."""
+        return "\n".join(f"{k}={v}" for k, v in vars(self).items())
+
+    def __getattr__(self, attr):
+        """Custom attribute access error message with helpful information."""
+        name = self.__class__.__name__
+        raise AttributeError(
+            f"""
+            '{name}' object has no attribute '{attr}'.
+            """
         )
 
-
-def ltwh2xyxy(x):
-    """
-    It converts the bounding box from [x1, y1, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
-
-    Args:
-        x (np.ndarray | torch.Tensor): The input bounding box coordinates in (left, top, width, height) format.
-    Returns:
-        y (np.ndarray | torch.Tensor): The bounding box coordinates in (x1, y1, x2, y2) format.
-    """
-    y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
-    y[:, 2] = x[:, 2] + x[:, 0]  # width
-    y[:, 3] = x[:, 3] + x[:, 1]  # height
-    return y
+    def get(self, key, default=None):
+        """Return the value of the specified key if it exists; otherwise, return the default value."""
+        return getattr(self, key, default)
 
 
-def xyxy2ltwh(x):
-    """
-    Convert nx4 bounding boxes from [x1, y1, x2, y2] to [x1, y1, w, h], where xy1=top-left, xy2=bottom-right
-
-    Args:
-        x (np.ndarray | torch.Tensor): The input bounding box coordinates in (x, y, x, y) format.
-    Returns:
-        y (np.ndarray | torch.Tensor): The bounding box coordinates in (left, right, width, height) format.
-    """
-    y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
-    y[:, 2] = x[:, 2] - x[:, 0]  # width
-    y[:, 3] = x[:, 3] - x[:, 1]  # height
-    return y
+def clean_url(url):
+    """Strip auth from URL, i.e. https://url.com/file.txt?auth -> https://url.com/file.txt."""
+    url = (
+        Path(url).as_posix().replace(":/", "://")
+    )  # Pathlib turns :// -> :/, as_posix() for Windows
+    return urllib.parse.unquote(url).split("?")[
+        0
+    ]  # '%2F' to '/', split https://url.com/file.txt?auth
 
 
-def xywh2xyxy(x):
-    """
-    Convert bounding box coordinates from (x, y, width, height) format to (x1, y1, x2, y2) format where (x1, y1) is the
-    top-left corner and (x2, y2) is the bottom-right corner.
-
-    Args:
-        x (np.ndarray | torch.Tensor): The input bounding box coordinates in (x, y, width, height) format.
-    Returns:
-        y (np.ndarray | torch.Tensor): The bounding box coordinates in (x1, y1, x2, y2) format.
-    """
-    y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
-    y[..., 0] = x[..., 0] - x[..., 2] / 2  # top left x
-    y[..., 1] = x[..., 1] - x[..., 3] / 2  # top left y
-    y[..., 2] = x[..., 0] + x[..., 2] / 2  # bottom right x
-    y[..., 3] = x[..., 1] + x[..., 3] / 2  # bottom right y
-    return y
+def url2file(url):
+    """Convert URL to filename, i.e. https://url.com/file.txt?auth -> file.txt."""
+    return Path(clean_url(url)).name
 
 
-def box_iou(box1, box2, eps=1e-7):
-    """
-    Calculate intersection-over-union (IoU) of boxes. Both sets of boxes are expected to be in (x1, y1, x2, y2) format.
-    Based on https://github.com/pytorch/vision/blob/master/torchvision/ops/boxes.py
-
-    Args:
-        box1 (torch.Tensor): A tensor of shape (N, 4) representing N bounding boxes.
-        box2 (torch.Tensor): A tensor of shape (M, 4) representing M bounding boxes.
-        eps (float, optional): A small value to avoid division by zero. Defaults to 1e-7.
-
-    Returns:
-        (torch.Tensor): An NxM tensor containing the pairwise IoU values for every element in box1 and box2.
-    """
-
-    # inter(N,M) = (rb(N,M,2) - lt(N,M,2)).clamp(0).prod(2)
-    (a1, a2), (b1, b2) = box1.unsqueeze(1).chunk(2, 2), box2.unsqueeze(0).chunk(2, 2)
-    inter = (torch.min(a2, b2) - torch.max(a1, b1)).clamp_(0).prod(2)
-
-    # IoU = inter / (area1 + area2 - inter)
-    return inter / ((a2 - a1).prod(2) + (b2 - b1).prod(2) - inter + eps)
+def check_suffix(file="yolov8n.pt", suffix=".pt", msg=""):
+    """Check file(s) for acceptable suffix."""
+    if file and suffix:
+        if isinstance(suffix, str):
+            suffix = (suffix,)
+        for f in file if isinstance(file, (list, tuple)) else [file]:
+            s = Path(f).suffix.lower().strip()  # file suffix
+            if len(s):
+                assert s in suffix, f"{msg}{f} acceptable suffix is {suffix}, not {s}"
 
 
-def map_variable_to_green(variable):
-    """
-    Map depth value into green intensity color
-    Args:
-        variable (float): The input depth value.
-    Returns:
-        green_bgr (np.ndarray): The green intensity color in BGR format.
-    """
-    min_value = 15
-    max_value = 25
-    variable = max(min_value, min(variable, max_value))
-    normalized_variable = (variable - min_value) / (max_value - min_value)
-    hue = 60
-    saturation = int(255)
-    value = 255 - int(255 * (1 - normalized_variable))
-    green_bgr = np.array([[[hue, saturation, value]]], dtype=np.uint8)
-    green_bgr = cv2.cvtColor(green_bgr, cv2.COLOR_HSV2BGR)
-    return green_bgr[0, 0]
+def check_file(file, suffix="", hard=True):
+    """Search/download file (if necessary) and return path."""
+    check_suffix(file, suffix)  # optional
+    file = str(file).strip()  # convert to string and strip spaces
+    if (
+        not file
+        or (
+            "://" not in file and Path(file).exists()
+        )  # '://' check required in Windows Python<3.10
+        or file.lower().startswith("grpc://")
+    ):  # file exists or gRPC Triton images
+        return file
+    else:  # search
+        files = glob.glob(str(ROOT / "**" / file), recursive=True) or glob.glob(
+            str(ROOT.parent / file)
+        )  # find file
+        if not files and hard:
+            raise FileNotFoundError(f"'{file}' does not exist")
+        elif len(files) > 1 and hard:
+            raise FileNotFoundError(
+                f"Multiple files match '{file}', specify exact path: {files}"
+            )
+        return files[0] if len(files) else []  # return file
 
 
-def visualize_depth_bbox_text(img, bbox, depth, thickness=2):
-    """
-    Draw a bounding boxes on the image displaying the depth value representation.
-    Args:
-        img (np.ndarray): The input image.
-        bbox (tuple): The bounding box coordinates in (x, y, width, height) format.
-        depth (float): The depth value.
-        thickness (int, optional): The thickness of the bounding box. Defaults to 2.
-    Returns:
-        img (np.ndarray): The image with the bounding box and depth value.
-    """
-    TEXT_COLOR = (215, 0, 0)
-    x_min, y_min, w, h = bbox
-    x_min, x_max, y_min, y_max = int(x_min), int(x_min + w), int(y_min), int(y_min + h)
-    green_color = map_variable_to_green(depth)
-    green_color = [green_color[0] / 1.0, green_color[1] / 1.0, green_color[2] / 1.0]
-    cv2.rectangle(
-        img, (x_min, y_min), (x_max, y_max), color=green_color, thickness=thickness
-    )
-    text_to_print = str(np.round(depth, 2))
-    # ((text_width, text_height), _)
-    ((_, text_height), _) = cv2.getTextSize(
-        text_to_print, cv2.FONT_HERSHEY_SIMPLEX, 0.32, 1
-    )
-    cv2.putText(
-        img,
-        text=text_to_print,
-        org=(x_min - 5, y_min - int(0.32 * text_height)),
-        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-        fontScale=0.32,
-        color=TEXT_COLOR,
-        lineType=cv2.LINE_AA,
-    )
-    return img
-
-
-def visualize_depth_bbox_yolo_text(img, bbox, depth, thickness=2):
-    """
-    Draw a bounding boxes on the image displaying the depth value representation.
-    Args:
-        img (np.ndarray): The input image.
-        bbox (tuple): The bounding box coordinates in (x1, y1, x2, y2) format.
-        depth (float): The depth value.
-        thickness (int, optional): The thickness of the bounding box. Defaults to 2.
-    Returns:
-        img (np.ndarray): The image with the bounding box and depth value.
-    """
-    TEXT_COLOR = (215, 0, 0)
-    x_min, y_min, x_max, y_max = bbox
-    x_min, x_max, y_min, y_max = int(x_min), int(x_max), int(y_min), int(y_max)
-    green_color = map_variable_to_green(depth)
-    green_color = [
-        int(green_color[0]) / 255.0,
-        int(green_color[1]) / 255.0,
-        int(green_color[2]) / 255.0,
-    ]
-    cv2.rectangle(
-        img, (x_min, y_min), (x_max, y_max), color=green_color, thickness=thickness
-    )
-    text_to_print = str(np.round(depth, 2))
-    # ((text_width, text_height), _)
-    ((_, text_height), _) = cv2.getTextSize(
-        text_to_print, cv2.FONT_HERSHEY_SIMPLEX, 0.32, 1
-    )
-    cv2.putText(
-        img,
-        text=text_to_print,
-        org=(x_min - 5, y_min - int(0.32 * text_height)),
-        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-        fontScale=0.32,
-        color=TEXT_COLOR,
-        lineType=cv2.LINE_AA,
-    )
-    return img
-
-
-def visualize_depth_bbox(img, bbox, depth, thickness=2):
-    """
-    Draw a bounding boxes on the image representing depth value as intensity in color green.
-    Args:
-        img (np.ndarray): The input image.
-        bbox (tuple): The bounding box coordinates in (x, y, width, height) format.
-        depth (float): The depth value.
-        thickness (int, optional): The thickness of the bounding box. Defaults to 2.
-    Returns:
-        img (np.ndarray): The image with the bounding box and depth value.
-    """
-    x_min, y_min, w, h = bbox
-    x_min, x_max, y_min, y_max = int(x_min), int(x_min + w), int(y_min), int(y_min + h)
-    green_color = map_variable_to_green(depth)
-    green_color = [green_color[0], green_color[1], green_color[2]]
-    cv2.rectangle(
-        img, (x_min, y_min), (x_max, y_max), color=green_color, thickness=thickness
-    )
-    # print(f"depth {depth[0]:.2f} color {green_color}")
-    return img
-
-
-def visualize_depth_bbox_yolo(img, bbox, depth, thickness=2):
-    """
-    Draw a bounding boxes on the image representing depth value as intensity in color green.
-    Args:
-        img (np.ndarray): The input image.
-        bbox (tuple): The bounding box coordinates in (x, y, width, height) format.
-        depth (float): The depth value.
-        thickness (int, optional): The thickness of the bounding box. Defaults to 2.
-    Returns:
-        img (np.ndarray): The image with the bounding box and depth value.
-    """
-    x_min, y_min, x_max, y_max = bbox
-    x_min, x_max, y_min, y_max = int(x_min), int(x_max), int(y_min), int(y_max)
-    green_color = map_variable_to_green(depth)
-    green_color = [int(green_color[0]), int(green_color[1]), int(green_color[2])]
-    cv2.rectangle(
-        img, (x_min, y_min), (x_max, y_max), color=green_color, thickness=thickness
-    )
-    # print(f"depth {depth[0]:.2f} color {green_color}")
-    return img
-
-
-# img, nms, category_id_to_name, name
-def visualize_pred(img, nms):
-    """
-    Visualize the prediction result from the model for a single image.
-    Args:
-        img (torch.Tensor): The input image(s) tensor.
-        nms (torch.Tensor): The prediction(s) tensor.
-    Returns:
-        img (np.ndarray): The image(s) with the bounding box and depth value.
-
-    """
-    prediction = nms[0].to("cpu")
-    img = img[0].to("cpu").permute(1, 2, 0).numpy().copy()
-    img = 255 * img  # Now scale by 255
-    img = img.astype(np.uint8)
-    bboxes = prediction[:, :4]
-    category_ids = prediction[:, 5]
-    depths = prediction[:, 6]
-    # bbox, category_id, depth
-    for bbox, _, depth in zip(
-        bboxes.detach().numpy(), category_ids.detach().numpy(), depths.detach().numpy()
-    ):
-        img = visualize_depth_bbox_yolo(img, bbox, depth)
-    return img
-
-
-# img, nms, category_id_to_name, name
-def visualize_batch(batch, output):
-    """
-    Visualize the prediction result from the model for a batch.
-    Args:
-        batch (torch.Tensor): The input image(s) tensor.
-        nms (torch.Tensor): The prediction(s) tensor.
-    Returns:
-        batchpred (np.ndarray): The image(s) with the bounding box and depth value.
-    """
-    batchpred = torch.zeros(
-        (batch.shape[1], batch.shape[2], batch.shape[3]), dtype=torch.float32
-    )
-    for i in range(len(output)):
-        prediction = output[i].to("cpu")
-        img = batch[i].to("cpu").permute(1, 2, 0).numpy().copy()
-        img = 255 * img  # Now scale by 255
-        img = img.astype(np.uint8)
-        bboxes = prediction[:, :4]
-        category_ids = prediction[:, 5]
-        depths = prediction[:, 6]
-        # bbox, category_id, depth
-        for bbox, _, depth in zip(
-            bboxes.detach().numpy(),
-            category_ids.detach().numpy(),
-            depths.detach().numpy(),
-        ):
-            img = visualize_depth_bbox_yolo(img, bbox, depth)
-            # img = visualize_depth_bbox_yolo_text(img, bbox, depth)
-        pred = torch.tensor(img, dtype=torch.uint8)
-        pred = pred.unsqueeze(0)
-        pred = pred.permute(0, 3, 1, 2)
-        if i == 0:
-            batchpred = pred
-        else:
-            batchpred = torch.cat((batchpred, pred), dim=0)
-    return batchpred
+def check_yaml(file, suffix=(".yaml", ".yml"), hard=True):
+    """Search/download YAML file (if necessary) and return path, checking suffix."""
+    return check_file(file, suffix, hard=hard)

@@ -20,14 +20,14 @@ import cv2
 import torch
 
 from src.inference import Inference, non_max_suppression
-from src.utils import visualize_batch
+from src.ops import plot_dod_batch
 
 from src.model import ConvModule  # pylint: disable=unused-import
 from src.model import Bottleneck  # pylint: disable=unused-import
 from src.model import C2f  # pylint: disable=unused-import
 from src.model import SPPF  # pylint: disable=unused-import
 from src.model import DetectionHead  # pylint: disable=unused-import
-from src.model import ObjectDetectorV0
+from src.model import DODv2
 
 from pytorch_model_summary import summary
 
@@ -220,6 +220,7 @@ def BatchConstruct(q_frame=None, q_batch=None):
         batch = []
         i = 0
         while i < batch_size and frame is not None:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             batch.append(frame)
             item = q_frame.get()
             q_frame.task_done()
@@ -246,7 +247,7 @@ def InferencePass(
     Args:
         q_batch (queue): The batch queue for inference.
         q_out (queue): The output queue for inference.
-        obj_model (ObjectDetectorV0): The object detection model.
+        obj_model (DODv2): The object detection model.
         postprocess (Inference): The postprocess for inference.
         cls (dict): The classes for object detection.
         dev (torch.device): The device for object detection.
@@ -279,7 +280,7 @@ def InferencePass(
                 multi_label=False,
             )  # bbox xyxy, score, cls, nmask
 
-            framedraw = visualize_batch(frame, output)
+            framedraw = plot_dod_batch(frame, output)
             for i in range(framedraw.shape[0]):
                 cv2.imshow(
                     "result", framedraw[i].to("cpu").permute(1, 2, 0).numpy().copy()
@@ -296,14 +297,16 @@ def LoadModel():
     Load the object detection model.
 
     Returns:
-        obj_model (ObjectDetectorV0): The object detection model.
+        obj_model (DODv2): The object detection model.
     """
-    obj_model = ObjectDetectorV0(
+    obj_model = DODv2(
         nclasses=len(params.classes),
         reg_max=params.params["reg_max"],
         device=params.params["device"],
     )
-    obj_model.load_state_dict(torch.load(f"{params.root}/DODcicd/models/optDOD.pth"))
+    obj_model.load_state_dict(
+        torch.load(f"{params.root}/DODcicd/models/DODv2_optimized.pth")
+    )
     if str(params.params["device"]) == "cuda":
         obj_model.to(params.params["device"])
     else:
@@ -323,9 +326,9 @@ def LoadModel():
 
 
 # ---------
+
 # --------- MAIN
 if __name__ == "__main__":
-
     # threads for preiodically clean queues
     thread_clean_q = Thread(target=clear_q, args=(q, 4))
     thread_clean_b = Thread(target=clear_b, args=(b, 2))
@@ -398,7 +401,7 @@ if __name__ == "__main__":
     while True:
         n1 = dt.datetime.now()
         try:
-            cv2.imshow("`q` to exit", safe)
+            cv2.imshow("`ESC` to exit", safe)
         except (ValueError, IOError) as err:
             logging.warning("An error occurred: %s", err)
             # Signal all threads to stop

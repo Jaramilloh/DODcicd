@@ -17,3 +17,6 @@ torchvision==0.15.2
 matplotlib==3.5.1
 seaborn==0.12.1
 pytorch-model-summary
+lapx>=0.5.2
+pyyaml>=6.0
+scipy==1.9.1
